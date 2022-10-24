@@ -1,8 +1,23 @@
 FROM golang:latest
 LABEL maintainer="NickCiao"
 
-RUN apt-get update && \
-apt-get install -y bash curl fzf git jq protobuf-compiler ripgrep shellcheck sudo vim zsh
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && apt-get update \
+    && apt-get install -y curl fzf git jq protobuf-compiler ripgrep shellcheck sudo wget vim zsh \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    #
+    # Clean up
+    && apt-get autoremove -y \
+    && apt-get clean -y \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+USER $USERNAME
 
 # Install Go plugins for protocol buffer compiler
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -15,10 +30,15 @@ RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
 # Default powerline10k theme, no plugins installed
 RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.1.3/zsh-in-docker.sh)" -- \
-  -t powerlevel10k/powerlevel10k
   -p z \
   -p fzf \
   -p ripgrep
+
+# TODO:
+#   1. p10k configure outputs a `.p10k.zsh`, how to automate this step?
+#       a. Read closely: https://github.com/deluan/zsh-in-docker
+#   2. What is VSCode's default container?  How do you set this up?
+#   3. Expose a port in this file
 
 
 # docker build --rm . -t devcontainer
